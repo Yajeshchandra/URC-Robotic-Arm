@@ -1,0 +1,35 @@
+cmake_minimum_required(VERSION 3.0.2)
+project(arm_urdf)
+
+find_package(catkin REQUIRED COMPONENTS 
+  message_generation 
+  roscpp 
+  rospy 
+  std_msgs 
+  geometry_msgs 
+  urdf 
+  xacro
+  message_generation 
+)
+
+
+catkin_package(
+  CATKIN_DEPENDS 
+  geometry_msgs 
+  roscpp 
+  rospy 
+  std_msgs 
+)
+
+find_package(roslaunch) 
+
+include_directories(
+# include
+  ${catkin_INCLUDE_DIRS}
+)
+ 
+foreach(dir config launch meshes urdf) 
+install(DIRECTORY ${dir}/ 
+DESTINATION 
+${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir}) 
+endforeach(dir) 
