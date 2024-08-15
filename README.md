@@ -20,7 +20,6 @@ This repository contains the essential packages for simulating and controlling a
 - [File Structure](#file-structure)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Prerequisites
 
@@ -53,7 +52,7 @@ Before you begin, ensure you have met the following requirements:
     source devel/setup.bash
     ```
 
-## Teleoperation of Robotic Arm
+## Usage
 
 ### 1. Launch the Robotic Arm in Gazebo
 
@@ -78,6 +77,9 @@ To control the robotic arm using key bindings:
 ```bash
 rosrun arm_teleop teleop.py
 ```
+
+  ![image](https://github.com/user-attachments/assets/58a98093-fb87-4899-b2ab-bd99611cd9a8)
+
 
 ## File Structure
 
