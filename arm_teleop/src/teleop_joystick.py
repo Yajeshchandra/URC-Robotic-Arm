@@ -1,71 +1,122 @@
+#!/usr/bin/env python3
+
 import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from sensor_msgs.msg import Joy
+import pygame
 
-# Define the keys and their corresponding joint indices
-joint_names = ['joint_0', 'joint_1', 'joint_2', 'joint_3', 'joint_4']
+class TeleopArmController:
+    def __init__(self):
+        # Define the joint names
+        self.joint_names = ['joint_0', 'joint_1', 'joint_2', 'joint_3', 'joint_4']
+        # Initial joint angles
+        self.joint_angles = [0.0] * len(self.joint_names)
+        self.joint_step = 0.1  # Step size for changing joint angles
+        # Initialize the selected joint
+        self.selected_joint = 0
 
-# Initial joint angles
-joint_angles = [0.0] * len(joint_names)
-joint_step = 0.1  # Step size for changing joint angles
+        # Initialize pygame and the gamepad
+        pygame.init()
+        pygame.joystick.init()
+        self.joystick = pygame.joystick.Joystick(0)
+        self.joystick.init()
 
-# Initialize the selected joint
-selected_joint = 0
+        rospy.init_node('teleop_arm')
+        self.pub = rospy.Publisher('/robot_arm_controller/command', JointTrajectory, queue_size=10)
+        self.rate = rospy.Rate(10)  # 10 Hz
 
-def joy_callback(data):
-    global joint_angles, selected_joint
+        rospy.loginfo("Teleoperation node started. Use the gamepad buttons to control joints.")
 
-    # Assuming that axes[0] is used to select the joint and axes[1] is used to increase/decrease the angle
-    if data.buttons[0]:  # Button 0 selects joint 0
-        selected_joint = 0
-    elif data.buttons[1]:  # Button 1 selects joint 1
-        selected_joint = 1
-    elif data.buttons[2]:  # Button 2 selects joint 2
-        selected_joint = 2
-    elif data.buttons[3]:  # Button 3 selects joint 3
-        selected_joint = 3
-    elif data.buttons[4]:  # Button 4 selects joint 4
-        selected_joint = 4
+    def get_gamepad_input(self):
+        pygame.event.pump()
+        num_buttons = self.joystick.get_numbuttons()
+        buttons = [self.joystick.get_button(i) for i in range(num_buttons)]
+        return buttons
 
-    # Adjust the joint angle based on joystick axis value
-    # Assuming axes[1] is the vertical axis on the left joystick
-    if data.axes[1] > 0.1:  # Push joystick up
-        joint_angles[selected_joint] += joint_step
-    elif data.axes[1] < -0.1:  # Push joystick down
-        joint_angles[selected_joint] -= joint_step
+    def run(self):
+        while not rospy.is_shutdown():
+            buttons = self.get_gamepad_input()
+            command_executed = False
 
-    # Clamp the angles within a range if needed
-    joint_angles[selected_joint] = max(-3.14, min(3.14, joint_angles[selected_joint]))
-    rospy.loginfo(f"Joint {selected_joint} adjusted to {joint_angles[selected_joint]} radians.")
+            # Example mappings
+            # Button[4] (A button) to select joint 0
+            # Button[6] (B button) to select joint 1
+            # Button[5] (X button) to select joint 2
+            # Button[7] (Y button) to select joint 3
+            # Button[3] (LB button) to select joint 4
 
-    # Create the JointTrajectory message
-    trajectory_msg = JointTrajectory()
-    trajectory_msg.joint_names = joint_names
+            # Button[0] (RB button) to increase joint angle
+            # Button[2] (Back button) to decrease joint angle
 
-    # Create a single point in the trajectory
-    point = JointTrajectoryPoint()
-    point.positions = joint_angles
-    point.time_from_start = rospy.Duration(0.1)  # Small duration to indicate immediate movement
+            # Select joint using specific buttons
+            if buttons[4]:  # Button[4] selects joint 0
+                self.selected_joint = 0
+                rospy.loginfo(f"Joint {self.selected_joint} selected.")
+            
+            elif buttons[6]:  # Button[6] selects joint 1
+                self.selected_joint = 1
+                rospy.loginfo(f"Joint {self.selected_joint} selected.")
+            
+            elif buttons[5]:  # Button[5] selects joint 2
+                self.selected_joint = 2
+                rospy.loginfo(f"Joint {self.selected_joint} selected.")
+            
+            elif buttons[7]:  # Button[7] selects joint 3
+                self.selected_joint = 3
+                rospy.loginfo(f"Joint {self.selected_joint} selected.")
+            
+            elif buttons[3]:  # Button[3] selects joint 4
+                self.selected_joint = 4
+                rospy.loginfo(f"Joint {self.selected_joint} selected.")
 
-    trajectory_msg.points = [point]
+            # Increase joint angle using button[0]
+            if buttons[0]:  # Button[0] increases joint angle
+                self.joint_angles[self.selected_joint] += self.joint_step
+                self.joint_angles[self.selected_joint] = max(-3.14, min(3.14, self.joint_angles[self.selected_joint]))
+                command_executed = True
 
-    # Publish the trajectory message
-    pub.publish(trajectory_msg)
+            # Decrease joint angle using button[2]
+            if buttons[2]:  # Button[2] decreases joint angle
+                self.joint_angles[self.selected_joint] -= self.joint_step
+                self.joint_angles[self.selected_joint] = max(-3.14, min(3.14, self.joint_angles[self.selected_joint]))
+                command_executed = True
 
-    rospy.loginfo(f"Published joint angles: {joint_angles}")
+            if command_executed:
+                rospy.loginfo(f"Adjusted joint {self.selected_joint} to {self.joint_angles[self.selected_joint]} radians.")
 
-def main():
-    rospy.init_node('teleop_arm')
-    global pub
-    pub = rospy.Publisher('/robot_arm_controller/command', JointTrajectory, queue_size=10)
-    rospy.Subscriber("/joy", Joy, joy_callback)
+                # Create the JointTrajectory message
+                trajectory_msg = JointTrajectory()
+                trajectory_msg.joint_names = self.joint_names
 
-    rospy.loginfo("Teleoperation node started. Use the controller to select joints and adjust angles.")
+                # Create a single point in the trajectory
+                point = JointTrajectoryPoint()
+                point.positions = self.joint_angles
+                point.time_from_start = rospy.Duration(0.1)  # Small duration to indicate immediate movement
 
-    rospy.spin()
+                trajectory_msg.points = [point]
+
+                # Publish the trajectory message
+                self.pub.publish(trajectory_msg)
+
+                rospy.loginfo(f"Published joint angles: {self.joint_angles}")
+
+            self.rate.sleep()
+
+    def shutdown(self):
+        pygame.quit()
 
 if __name__ == '__main__':
+    teleop_arm = TeleopArmController()
     try:
-        main()
+        teleop_arm.run()
     except rospy.ROSInterruptException:
         pass
+    finally:
+        teleop_arm.shutdown()
+
+
+
+
+
+
+
+
